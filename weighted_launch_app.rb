@@ -1,8 +1,14 @@
 require 'yaml'
 
+
 class WeightedLaunchApp
   attr_accessor :file_name
+
   def initialize( apps )
+    self.apps = apps
+  end
+  
+  def apps=( apps )
     @file_name = File.join Preferences.keymando_directory, ".weighted_launch_app"
     weights = load_rankings
     @apps = apps.map{ |app| { app => weights[app.original] || 0 } }.reduce(&:merge)
@@ -28,15 +34,19 @@ class WeightedLaunchApp
   end
 end
 
-def weighted_launch_app
+def get_apps
   apps = []
   ["#{ENV['HOME']}/Applications","/Applications", "/Developer/Applications","/System/Library/CoreServices"].each do|catalog|
     find_all_items(catalog,".app",3){|item| apps << item}
   end
+  apps
+end
 
-  @weighted_launch_app ||= WeightedLaunchApp.new apps
-
+def weighted_launch_app
   command "Weighted Launch Application" do
-    trigger_item_with(@weighted_launch_app.apps, @weighted_launch_app)
+    @weighted_launch_app ||= WeightedLaunchApp.new get_apps
+    app = Accessibility::Gateway.get_active_application
+    apps = @weighted_launch_app.apps.reject{ |a| a.to_s == app.title }
+    trigger_item_with(apps, @weighted_launch_app)
   end
 end
